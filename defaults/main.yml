@@ -1,0 +1,8 @@
+---
+step_ca_client_url: https://step-ca.local.iamrobertyoung.co.uk
+step_ca_client_fingerprint: 2fa81c8c3c991096376f31bd69fb9503f809d5a1140dbebadb3a6e5941e1ebc8
+step_ca_client_cert_name: "{{ fqdn }}"
+step_ca_client_cert_file: "/etc/ssl/certs/{{ step_ca_client_cert_name }}.crt"
+step_ca_client_key_file: "/etc/ssl/private/{{ step_ca_client_cert_name }}.pem"
+step_ca_client_provisioner_password: password
+step_ca_client_provisioner_password_file: /root/.step/config/ansible_provisioner_password.txt
