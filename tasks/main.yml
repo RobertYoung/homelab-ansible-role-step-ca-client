@@ -1,0 +1,8 @@
+---
+- name: Setup
+  ansible.builtin.include_tasks:
+    file: setup.yml
+
+- name: Client Certificate
+  ansible.builtin.include_tasks:
+    file: client-cert.yml

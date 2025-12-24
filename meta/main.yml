@@ -1,0 +1,25 @@
+---
+galaxy_info:
+  author: RobertYoung
+  description: Ansible role for configuring step-ca client with automatic certificate renewal
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+  galaxy_tags:
+    - step-ca
+    - certificates
+    - tls
+    - ssl
+    - pki
+    - smallstep
+
+dependencies: []

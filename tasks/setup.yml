@@ -1,0 +1,35 @@
+---
+- name: Add step-ca repo
+  become: true
+  ansible.builtin.deb822_repository:
+    name: step-ca
+    types: [deb]
+    uris: "https://packages.smallstep.com/stable/debian"
+    suites: [debs]
+    components: [main]
+    signed_by: https://packages.smallstep.com/keys/apt/repo-signing-key.gpg
+    state: present
+    enabled: true
+
+- name: Update apt and install step-cli
+  become: true
+  ansible.builtin.apt:
+    update_cache: true
+    name:
+      - step-cli
+    state: present
+
+- name: Bootstrap step-ca
+  become: true
+  ansible.builtin.command:
+    cmd: "step ca bootstrap --ca-url {{ step_ca_client_url }} --fingerprint {{ step_ca_client_fingerprint }} --install"
+  args:
+    creates: "/root/.step/certs/root_ca.crt"
+
+- name: Change permissions of root ca
+  become: true
+  ansible.builtin.file:
+    path: "/root/.step/certs/root_ca.crt"
+    owner: "root"
+    group: "root"
+    mode: "0644"
