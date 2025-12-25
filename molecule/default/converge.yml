@@ -1,0 +1,11 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    fqdn: molecule-test.local
+    step_ca_client_provisioner_password: "{{ lookup('amazon.aws.ssm_parameter', '/home-server/step-ca-ansible-password') }}"
+    step_ca_client_post_renew_commands:
+      - "/usr/bin/touch /tmp/cert-renewed-marker"
+  roles:
+    - role: robertyoung.step_ca_client
