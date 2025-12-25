@@ -1,0 +1,8 @@
+---
+# Ansible-lint configuration
+# https://ansible.readthedocs.io/projects/lint/configuring/
+# Exclude molecule test files from syntax-check for role reference
+# Molecule handles role resolution differently at runtime
+
+exclude_paths:
+  - molecule/

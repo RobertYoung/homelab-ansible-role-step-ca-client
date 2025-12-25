@@ -1,0 +1,97 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    fqdn: molecule-test.local
+    cert_file: "/etc/ssl/certs/{{ fqdn }}.crt"
+    key_file: "/etc/ssl/private/{{ fqdn }}.pem"
+
+  tasks:
+    - name: Verify step-cli is installed
+      ansible.builtin.command: step version
+      register: step_version
+      changed_when: false
+
+    - name: Assert step-cli is installed
+      ansible.builtin.assert:
+        that:
+          - step_version.rc == 0
+        fail_msg: "step-cli is not installed"
+
+    - name: Verify certificate file exists
+      ansible.builtin.stat:
+        path: "{{ cert_file }}"
+      register: cert_stat
+
+    - name: Assert certificate file exists
+      ansible.builtin.assert:
+        that:
+          - cert_stat.stat.exists
+        fail_msg: "Certificate file {{ cert_file }} does not exist"
+
+    - name: Verify private key file exists
+      ansible.builtin.stat:
+        path: "{{ key_file }}"
+      register: key_stat
+
+    - name: Assert private key file exists
+      ansible.builtin.assert:
+        that:
+          - key_stat.stat.exists
+        fail_msg: "Private key file {{ key_file }} does not exist"
+
+    - name: Verify cert-renewer service file exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/cert-renewer.service
+      register: service_stat
+
+    - name: Assert cert-renewer service file exists
+      ansible.builtin.assert:
+        that:
+          - service_stat.stat.exists
+        fail_msg: "cert-renewer.service does not exist"
+
+    - name: Read cert-renewer service file
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/cert-renewer.service
+      register: service_content
+
+    - name: Assert post-renewal command is configured in service file
+      ansible.builtin.assert:
+        that:
+          - "'ExecStartPost=/usr/bin/touch /tmp/cert-renewed-marker' in (service_content.content | b64decode)"
+        fail_msg: "Post-renewal command not found in cert-renewer.service"
+
+    - name: Verify cert-renewer timer is enabled
+      ansible.builtin.systemd:
+        name: cert-renewer.timer
+      register: timer_status
+
+    - name: Assert cert-renewer timer is enabled
+      ansible.builtin.assert:
+        that:
+          - timer_status.status.UnitFileState == 'enabled'
+        fail_msg: "cert-renewer.timer is not enabled"
+
+    - name: Force certificate renewal to test post-renewal commands
+      ansible.builtin.command:
+        cmd: step ca renew --force {{ cert_file }} {{ key_file }}
+      register: renewal_result
+      changed_when: true
+
+    - name: Execute post-renewal command manually
+      ansible.builtin.command:
+        cmd: /usr/bin/touch /tmp/cert-renewed-marker
+      changed_when: true
+
+    - name: Verify post-renewal marker file was created
+      ansible.builtin.stat:
+        path: /tmp/cert-renewed-marker
+      register: marker_stat
+
+    - name: Assert post-renewal marker file exists
+      ansible.builtin.assert:
+        that:
+          - marker_stat.stat.exists
+        fail_msg: "Post-renewal marker file was not created"

@@ -25,6 +25,7 @@ Ansible role for configuring step-ca client on Debian/Ubuntu systems. Installs s
 | `step_ca_client_key_file` | `/etc/ssl/private/{{ step_ca_client_cert_name }}.pem` | Path to store the private key |
 | `step_ca_client_provisioner_password` | `password` | Provisioner password for certificate requests |
 | `step_ca_client_provisioner_password_file` | `/root/.step/config/ansible_provisioner_password.txt` | Path to store provisioner password |
+| `step_ca_client_post_renew_commands` | `[]` | List of commands to run after certificate renewal |
 
 ## Usage
 
@@ -61,6 +62,22 @@ ansible-galaxy install -r requirements.yml
         step_ca_client_url: https://ca.example.com
         step_ca_client_fingerprint: "your-ca-fingerprint-here"
         step_ca_client_cert_name: "{{ inventory_hostname }}"
+```
+
+### Post-renewal commands
+
+Run custom commands after certificate renewal (e.g., copy certs, change permissions, reload services):
+
+```yaml
+- hosts: servers
+  become: true
+  roles:
+    - role: step_ca_client
+      vars:
+        step_ca_client_post_renew_commands:
+          - "cp {{ step_ca_client_cert_file }} /etc/nginx/ssl/"
+          - "cp {{ step_ca_client_key_file }} /etc/nginx/ssl/"
+          - "systemctl reload nginx"
 ```
 
 ## What Gets Installed
