@@ -41,6 +41,28 @@
           - key_stat.stat.exists
         fail_msg: "Private key file {{ key_file }} does not exist"
 
+    - name: Get certificate validity period
+      ansible.builtin.command:
+        cmd: step certificate inspect {{ cert_file }} --format json
+      register: cert_info
+      changed_when: false
+
+    - name: Parse certificate validity
+      ansible.builtin.set_fact:
+        cert_not_before: "{{ (cert_info.stdout | from_json).validity.start }}"
+        cert_not_after: "{{ (cert_info.stdout | from_json).validity.end }}"
+
+    - name: Calculate certificate validity duration in hours
+      ansible.builtin.set_fact:
+        cert_validity_seconds: "{{ ((cert_not_after | to_datetime('%Y-%m-%dT%H:%M:%SZ')) - (cert_not_before | to_datetime('%Y-%m-%dT%H:%M:%SZ'))).total_seconds() | int }}"
+
+    - name: Assert certificate validity is approximately 24 hours
+      ansible.builtin.assert:
+        that:
+          - cert_validity_seconds | int >= 82800
+          - cert_validity_seconds | int <= 90000
+        fail_msg: "Certificate validity is {{ cert_validity_seconds | int // 3600 }} hours, expected ~24 hours"
+
     - name: Verify cert-renewer service file exists
       ansible.builtin.stat:
         path: /etc/systemd/system/cert-renewer.service
