@@ -24,6 +24,7 @@
     src: "cert-renewer/cert-renewer.service.j2"
     dest: /etc/systemd/system/cert-renewer.service
     owner: root
+    mode: "0644"
   register: cert_renewer_service
 
 - name: "Create cert-renewer systemd timer file"
@@ -32,6 +33,7 @@
     src: "cert-renewer/cert-renewer.timer.j2"
     dest: /etc/systemd/system/cert-renewer.timer
     owner: root
+    mode: "0644"
   register: cert_renewer_timer
 
 - name: "Reload systemd"
@@ -42,7 +44,9 @@
   when: cert_renewer_service.changed or cert_renewer_timer.changed
   register: systemd_reload
 
-- name: "Start cert-renewer timer"
+- name: "Enable and start cert-renewer timer"
   become: true
-  ansible.builtin.command: "systemctl enable --now cert-renewer.timer"
-  when: systemd_reload.changed
+  ansible.builtin.systemd:
+    name: cert-renewer.timer
+    enabled: true
+    state: started

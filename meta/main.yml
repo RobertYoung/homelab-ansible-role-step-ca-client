@@ -1,5 +1,7 @@
 ---
 galaxy_info:
+  role_name: step_ca_client
+  namespace: robertyoung
   author: RobertYoung
   description: Ansible role for configuring step-ca client with automatic certificate renewal
   license: MIT
@@ -15,7 +17,7 @@ galaxy_info:
         - bullseye
         - bookworm
   galaxy_tags:
-    - step-ca
+    - stepca
     - certificates
     - tls
     - ssl
