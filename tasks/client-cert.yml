@@ -14,6 +14,7 @@
       step ca certificate {{ step_ca_client_cert_name }} {{ step_ca_client_cert_file }} {{ step_ca_client_key_file }}
       --provisioner ansible
       --provisioner-password-file {{ step_ca_client_provisioner_password_file }}
+      --not-after {{ step_ca_client_cert_not_after }}
       --force
   args:
     creates: "{{ step_ca_client_cert_file }}"

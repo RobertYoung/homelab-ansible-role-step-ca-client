@@ -25,6 +25,7 @@ Ansible role for configuring step-ca client on Debian/Ubuntu systems. Installs s
 | `step_ca_client_key_file` | `/etc/ssl/private/{{ step_ca_client_cert_name }}.pem` | Path to store the private key |
 | `step_ca_client_provisioner_password` | `password` | Provisioner password for certificate requests |
 | `step_ca_client_provisioner_password_file` | `/root/.step/config/ansible_provisioner_password.txt` | Path to store provisioner password |
+| `step_ca_client_cert_not_after` | `24h` | Certificate validity duration (e.g., `24h`, `720h` for 30 days) |
 | `step_ca_client_post_renew_commands` | `[]` | List of commands to run after certificate renewal |
 
 ## Usage
