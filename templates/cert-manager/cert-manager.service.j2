@@ -1,0 +1,14 @@
+[Unit]
+Description=Certificate manager for {{ step_ca_client_cert_name }}
+After=network-online.target
+Documentation=https://smallstep.com/docs/step-ca/certificate-authority-server-production
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=root
+
+ExecStart=/usr/local/bin/step-ca-cert-manager.sh
+
+[Install]
+WantedBy=multi-user.target

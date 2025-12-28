@@ -63,68 +63,92 @@
           - cert_validity_seconds | int <= 608400
         fail_msg: "Certificate validity is {{ cert_validity_seconds | int // 3600 }} hours, expected ~168 hours"
 
-    - name: Verify cert-renewer service file exists
+    - name: Verify cert-manager script exists
       ansible.builtin.stat:
-        path: /etc/systemd/system/cert-renewer.service
+        path: /usr/local/bin/step-ca-cert-manager.sh
+      register: script_stat
+
+    - name: Assert cert-manager script is executable
+      ansible.builtin.assert:
+        that:
+          - script_stat.stat.exists
+          - script_stat.stat.mode == '0755'
+        fail_msg: "cert-manager script is missing or not executable"
+
+    - name: Read cert-manager script
+      ansible.builtin.slurp:
+        src: /usr/local/bin/step-ca-cert-manager.sh
+      register: script_content
+
+    - name: Assert post-command is in script
+      ansible.builtin.assert:
+        that:
+          - "'/usr/bin/touch /tmp/cert-renewed-marker' in (script_content.content | b64decode)"
+        fail_msg: "Post-command not found in cert-manager script"
+
+    - name: Verify cert-manager service file exists
+      ansible.builtin.stat:
+        path: /etc/systemd/system/cert-manager.service
       register: service_stat
 
-    - name: Assert cert-renewer service file exists
+    - name: Assert cert-manager service file exists
       ansible.builtin.assert:
         that:
           - service_stat.stat.exists
-        fail_msg: "cert-renewer.service does not exist"
+        fail_msg: "cert-manager.service does not exist"
 
-    - name: Read cert-renewer service file
+    - name: Read cert-manager service file
       ansible.builtin.slurp:
-        src: /etc/systemd/system/cert-renewer.service
+        src: /etc/systemd/system/cert-manager.service
       register: service_content
 
-    - name: Assert post-renewal command is configured in service file
+    - name: Assert service calls cert-manager script
       ansible.builtin.assert:
         that:
-          - "'ExecStartPost=/usr/bin/touch /tmp/cert-renewed-marker' in (service_content.content | b64decode)"
-        fail_msg: "Post-renewal command not found in cert-renewer.service"
+          - "'ExecStart=/usr/local/bin/step-ca-cert-manager.sh' in (service_content.content | b64decode)"
+        fail_msg: "Service does not call cert-manager script"
 
-    - name: Read cert-renewer timer file
+    - name: Read cert-manager timer file
       ansible.builtin.slurp:
-        src: /etc/systemd/system/cert-renewer.timer
+        src: /etc/systemd/system/cert-manager.timer
       register: timer_content
 
     - name: Assert timer schedule is configured correctly
       ansible.builtin.assert:
         that:
           - "'OnCalendar=daily' in (timer_content.content | b64decode)"
-        fail_msg: "Timer schedule not configured correctly in cert-renewer.timer"
+        fail_msg: "Timer schedule not configured correctly in cert-manager.timer"
 
-    - name: Verify cert-renewer timer is enabled
+    - name: Verify cert-manager timer is enabled
       ansible.builtin.systemd:
-        name: cert-renewer.timer
+        name: cert-manager.timer
       register: timer_status
 
-    - name: Assert cert-renewer timer is enabled
+    - name: Assert cert-manager timer is enabled
       ansible.builtin.assert:
         that:
           - timer_status.status.UnitFileState == 'enabled'
-        fail_msg: "cert-renewer.timer is not enabled"
+        fail_msg: "cert-manager.timer is not enabled"
 
-    - name: Force certificate renewal to test post-renewal commands
-      ansible.builtin.command:
-        cmd: step ca renew --force {{ cert_file }} {{ key_file }}
-      register: renewal_result
-      changed_when: true
-
-    - name: Execute post-renewal command manually
-      ansible.builtin.command:
-        cmd: /usr/bin/touch /tmp/cert-renewed-marker
-      changed_when: true
-
-    - name: Verify post-renewal marker file was created
+    - name: Verify post-renewal marker file was created during initial cert creation
       ansible.builtin.stat:
         path: /tmp/cert-renewed-marker
       register: marker_stat
 
-    - name: Assert post-renewal marker file exists
+    - name: Assert post-command was executed during initial certificate creation
       ansible.builtin.assert:
         that:
           - marker_stat.stat.exists
-        fail_msg: "Post-renewal marker file was not created"
+        fail_msg: "Post-command was not executed during initial certificate creation"
+
+    - name: Run cert-manager script when cert is valid
+      ansible.builtin.command:
+        cmd: /usr/local/bin/step-ca-cert-manager.sh
+      register: script_result
+      changed_when: false
+
+    - name: Assert script reports cert is valid
+      ansible.builtin.assert:
+        that:
+          - "'Certificate is valid, no action needed' in script_result.stdout"
+        fail_msg: "Script should report cert is valid when no action needed"

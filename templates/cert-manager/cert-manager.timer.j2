@@ -1,7 +1,7 @@
 [Unit]
-Description=Timer for certificate renewal of {{ step_ca_client_cert_name }}
+Description=Timer for certificate manager of {{ step_ca_client_cert_name }}
 Documentation=https://smallstep.com/docs/step-ca/certificate-authority-server-production
-; PartOf=cert-renewer.target
+; PartOf=cert-manager.target
 
 [Timer]
 Persistent=true
