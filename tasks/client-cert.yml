@@ -7,47 +7,55 @@
     dest: "{{ step_ca_client_provisioner_password_file }}"
     mode: '0600'
 
-- name: Create service certificate using step-ca
-  become: true
-  ansible.builtin.command:
-    cmd: >-
-      step ca certificate {{ step_ca_client_cert_name }} {{ step_ca_client_cert_file }} {{ step_ca_client_key_file }}
-      --provisioner ansible
-      --provisioner-password-file {{ step_ca_client_provisioner_password_file }}
-      --not-after {{ step_ca_client_cert_not_after }}
-      --force
-  args:
-    creates: "{{ step_ca_client_cert_file }}"
-
-- name: "Create cert-renewer systemd service file"
+- name: Deploy cert-manager script
   become: true
   ansible.builtin.template:
-    src: "cert-renewer/cert-renewer.service.j2"
-    dest: /etc/systemd/system/cert-renewer.service
+    src: "cert-manager/cert-manager.sh.j2"
+    dest: /usr/local/bin/step-ca-cert-manager.sh
     owner: root
-    mode: "0644"
-  register: cert_renewer_service
+    group: root
+    mode: "0755"
 
-- name: "Create cert-renewer systemd timer file"
+- name: "Create cert-manager systemd service file"
   become: true
   ansible.builtin.template:
-    src: "cert-renewer/cert-renewer.timer.j2"
-    dest: /etc/systemd/system/cert-renewer.timer
+    src: "cert-manager/cert-manager.service.j2"
+    dest: /etc/systemd/system/cert-manager.service
     owner: root
     mode: "0644"
-  register: cert_renewer_timer
+  register: cert_manager_service
+
+- name: "Create cert-manager systemd timer file"
+  become: true
+  ansible.builtin.template:
+    src: "cert-manager/cert-manager.timer.j2"
+    dest: /etc/systemd/system/cert-manager.timer
+    owner: root
+    mode: "0644"
+  register: cert_manager_timer
 
 - name: "Reload systemd"
   become: true
   changed_when: true
   ansible.builtin.systemd:
     daemon_reload: true
-  when: cert_renewer_service.changed or cert_renewer_timer.changed
-  register: systemd_reload
+  when: cert_manager_service.changed or cert_manager_timer.changed
 
-- name: "Enable and start cert-renewer timer"
+- name: Check if certificate exists
+  ansible.builtin.stat:
+    path: "{{ step_ca_client_cert_file }}"
+  register: cert_file_stat
+
+- name: Run cert-manager service for initial setup
   become: true
   ansible.builtin.systemd:
-    name: cert-renewer.timer
+    name: cert-manager.service
+    state: started
+  when: not cert_file_stat.stat.exists
+
+- name: "Enable and start cert-manager timer"
+  become: true
+  ansible.builtin.systemd:
+    name: cert-manager.timer
     enabled: true
     state: started

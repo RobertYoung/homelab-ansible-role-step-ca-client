@@ -4,14 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Ansible role (`step_ca_client`) for configuring step-ca client on Ubuntu/Debian systems. It installs step-cli, bootstraps the CA, generates service certificates, and sets up automatic renewal.
+This is an Ansible role (`step_ca_client`) for configuring step-ca client on Ubuntu/Debian systems. It installs step-cli, bootstraps the CA, generates service certificates, and sets up automatic renewal via a unified cert-manager script.
 
 ## Development Commands
+
+### Testing
+```bash
+# Run full molecule test suite (requires AWS credentials for SSM parameter lookup)
+aws-vault exec iamrobertyoung:home-assistant-production:p -- molecule test
+
+# Run individual molecule stages
+aws-vault exec iamrobertyoung:home-assistant-production:p -- molecule converge  # Apply role
+aws-vault exec iamrobertyoung:home-assistant-production:p -- molecule verify    # Run verification
+aws-vault exec iamrobertyoung:home-assistant-production:p -- molecule destroy   # Cleanup
+```
 
 ### Linting
 ```bash
 yamllint .                    # Lint all YAML files
-ansible-lint                  # Lint Ansible code (currently disabled in CI)
+ansible-lint                  # Lint Ansible code
 ```
 
 ### Pre-commit Hooks
@@ -27,9 +38,9 @@ Uses `mise` for tool versions (Ansible 13, pipx 1.8). Run `mise install` to set 
 
 - `tasks/main.yml` - Entry point, imports setup and client-cert tasks
 - `tasks/setup.yml` - Adds step-ca repo, installs step-cli, bootstraps CA
-- `tasks/client-cert.yml` - Creates service certificate and cert-renewer systemd units
+- `tasks/client-cert.yml` - Deploys cert-manager script and systemd units
 - `defaults/main.yml` - Default variables (step_ca_client_url, fingerprint, cert paths)
-- `templates/cert-renewer/` - Systemd service and timer templates for auto-renewal
+- `templates/cert-manager/` - Script and systemd templates for certificate management
 
 ## Required Variables
 

@@ -1,0 +1,37 @@
+#!/bin/bash
+# Unified certificate manager for step-ca
+# Handles both initial certificate creation and renewal
+set -euo pipefail
+
+CERT_FILE="{{ step_ca_client_cert_file }}"
+KEY_FILE="{{ step_ca_client_key_file }}"
+CERT_NAME="{{ step_ca_client_cert_name }}"
+PASSWORD_FILE="{{ step_ca_client_provisioner_password_file }}"
+NOT_AFTER="{{ step_ca_client_cert_not_after }}"
+
+ACTION_TAKEN=""
+
+if [ ! -f "$CERT_FILE" ]; then
+    echo "Creating new certificate..."
+    /usr/bin/step ca certificate "$CERT_NAME" "$CERT_FILE" "$KEY_FILE" \
+        --provisioner ansible \
+        --provisioner-password-file "$PASSWORD_FILE" \
+        --not-after "$NOT_AFTER" \
+        --force
+    ACTION_TAKEN="created"
+elif /usr/bin/step certificate needs-renewal "$CERT_FILE"; then
+    echo "Renewing certificate..."
+    /usr/bin/step ca renew --force "$CERT_FILE" "$KEY_FILE"
+    ACTION_TAKEN="renewed"
+else
+    echo "Certificate is valid, no action needed"
+fi
+
+if [ -n "$ACTION_TAKEN" ]; then
+    echo "Running post-commands..."
+{% for cmd in step_ca_client_post_renew_commands %}
+    {{ cmd }}
+{% endfor %}
+fi
+
+exit 0
