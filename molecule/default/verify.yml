@@ -56,12 +56,12 @@
       ansible.builtin.set_fact:
         cert_validity_seconds: "{{ ((cert_not_after | to_datetime('%Y-%m-%dT%H:%M:%SZ')) - (cert_not_before | to_datetime('%Y-%m-%dT%H:%M:%SZ'))).total_seconds() | int }}"
 
-    - name: Assert certificate validity is approximately 24 hours
+    - name: Assert certificate validity is approximately 168 hours (7 days)
       ansible.builtin.assert:
         that:
-          - cert_validity_seconds | int >= 82800
-          - cert_validity_seconds | int <= 90000
-        fail_msg: "Certificate validity is {{ cert_validity_seconds | int // 3600 }} hours, expected ~24 hours"
+          - cert_validity_seconds | int >= 601200
+          - cert_validity_seconds | int <= 608400
+        fail_msg: "Certificate validity is {{ cert_validity_seconds | int // 3600 }} hours, expected ~168 hours"
 
     - name: Verify cert-renewer service file exists
       ansible.builtin.stat:
@@ -84,6 +84,17 @@
         that:
           - "'ExecStartPost=/usr/bin/touch /tmp/cert-renewed-marker' in (service_content.content | b64decode)"
         fail_msg: "Post-renewal command not found in cert-renewer.service"
+
+    - name: Read cert-renewer timer file
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/cert-renewer.timer
+      register: timer_content
+
+    - name: Assert timer schedule is configured correctly
+      ansible.builtin.assert:
+        that:
+          - "'OnCalendar=daily' in (timer_content.content | b64decode)"
+        fail_msg: "Timer schedule not configured correctly in cert-renewer.timer"
 
     - name: Verify cert-renewer timer is enabled
       ansible.builtin.systemd:

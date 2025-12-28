@@ -6,8 +6,8 @@ Documentation=https://smallstep.com/docs/step-ca/certificate-authority-server-pr
 [Timer]
 Persistent=true
 
-; Run the timer unit every 15 minutes.
-OnCalendar=*:1/15
+; Run the timer on the configured schedule.
+OnCalendar={{ step_ca_client_renewal_schedule }}
 
 ; Always run the timer on time.
 AccuracySec=1us
