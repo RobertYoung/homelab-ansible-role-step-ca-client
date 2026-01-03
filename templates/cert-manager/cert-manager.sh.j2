@@ -11,7 +11,7 @@ NOT_AFTER="{{ step_ca_client_cert_not_after }}"
 
 ACTION_TAKEN=""
 
-if [ ! -f "$CERT_FILE" ]; then
+create_certificate() {
     echo "Creating new certificate..."
     /usr/bin/step ca certificate "$CERT_NAME" "$CERT_FILE" "$KEY_FILE" \
         --provisioner ansible \
@@ -19,6 +19,18 @@ if [ ! -f "$CERT_FILE" ]; then
         --not-after "$NOT_AFTER" \
         --force
     ACTION_TAKEN="created"
+}
+
+is_certificate_expired() {
+    # Check if certificate has already expired (not just needs renewal)
+    ! openssl x509 -in "$CERT_FILE" -checkend 0 -noout 2>/dev/null
+}
+
+if [ ! -f "$CERT_FILE" ]; then
+    create_certificate
+elif is_certificate_expired; then
+    echo "Certificate has expired, creating new certificate..."
+    create_certificate
 elif /usr/bin/step certificate needs-renewal "$CERT_FILE"; then
     echo "Renewing certificate..."
     /usr/bin/step ca renew --force "$CERT_FILE" "$KEY_FILE"
