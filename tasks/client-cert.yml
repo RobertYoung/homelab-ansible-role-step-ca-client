@@ -1,61 +1,80 @@
 ---
 
-- name: Save provisioner password
-  become: true
-  ansible.builtin.copy:
-    content: "{{ step_ca_client_provisioner_password }}"
-    dest: "{{ step_ca_client_provisioner_password_file }}"
-    mode: '0600'
-
-- name: Deploy cert-manager script
-  become: true
-  ansible.builtin.template:
-    src: "cert-manager/cert-manager.sh.j2"
-    dest: /usr/local/bin/step-ca-cert-manager.sh
-    owner: root
-    group: root
-    mode: "0755"
-
-- name: "Create cert-manager systemd service file"
-  become: true
-  ansible.builtin.template:
-    src: "cert-manager/cert-manager.service.j2"
-    dest: /etc/systemd/system/cert-manager.service
-    owner: root
-    mode: "0644"
-  register: cert_manager_service
-
-- name: "Create cert-manager systemd timer file"
-  become: true
-  ansible.builtin.template:
-    src: "cert-manager/cert-manager.timer.j2"
-    dest: /etc/systemd/system/cert-manager.timer
-    owner: root
-    mode: "0644"
-  register: cert_manager_timer
-
-- name: "Reload systemd"
-  become: true
-  changed_when: true
-  ansible.builtin.systemd:
-    daemon_reload: true
-  when: cert_manager_service.changed or cert_manager_timer.changed
-
 - name: Check if certificate exists
   ansible.builtin.stat:
     path: "{{ step_ca_client_cert_file }}"
   register: cert_file_stat
 
-- name: Run cert-manager service for initial setup
+- name: Check if certificate has expired
   become: true
-  ansible.builtin.systemd:
-    name: cert-manager.service
-    state: started
-  when: not cert_file_stat.stat.exists
+  ansible.builtin.command:
+    cmd: openssl x509 -in "{{ step_ca_client_cert_file }}" -checkend 0 -noout
+  register: cert_expiry_check
+  changed_when: false
+  failed_when: false
+  when: cert_file_stat.stat.exists
 
-- name: "Enable and start cert-manager timer"
+- name: Create certificate
+  become: true
+  ansible.builtin.shell: |
+    /usr/bin/step ca certificate "{{ step_ca_client_cert_name }}" \
+      "{{ step_ca_client_cert_file }}" "{{ step_ca_client_key_file }}" \
+      --provisioner ansible \
+      --provisioner-password-file /dev/stdin \
+      --not-after "{{ step_ca_client_cert_not_after }}" \
+      --force <<< "{{ step_ca_client_provisioner_password }}"
+  args:
+    executable: /bin/bash
+  when: not cert_file_stat.stat.exists or (cert_expiry_check.rc | default(0)) != 0
+  register: cert_created
+  changed_when: cert_created.rc == 0
+
+- name: Run post-commands after initial certificate creation  # noqa: command-instead-of-shell
+  become: true
+  ansible.builtin.shell: "{{ item }}"
+  loop: "{{ step_ca_client_post_renew_commands }}"
+  changed_when: true
+  when:
+    - cert_created is defined
+    - cert_created.changed
+
+- name: Deploy step-ca-cert-renewer script
+  become: true
+  ansible.builtin.template:
+    src: "step-ca-cert-renewer/step-ca-cert-renewer.sh.j2"
+    dest: /usr/local/bin/step-ca-cert-renewer.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create step-ca-cert-renewer systemd service file
+  become: true
+  ansible.builtin.template:
+    src: "step-ca-cert-renewer/step-ca-cert-renewer.service.j2"
+    dest: /etc/systemd/system/step-ca-cert-renewer.service
+    owner: root
+    mode: "0644"
+  register: cert_renewer_service
+
+- name: Create step-ca-cert-renewer systemd timer file
+  become: true
+  ansible.builtin.template:
+    src: "step-ca-cert-renewer/step-ca-cert-renewer.timer.j2"
+    dest: /etc/systemd/system/step-ca-cert-renewer.timer
+    owner: root
+    mode: "0644"
+  register: cert_renewer_timer
+
+- name: Reload systemd
+  become: true
+  changed_when: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: cert_renewer_service.changed or cert_renewer_timer.changed
+
+- name: Enable and start step-ca-cert-renewer timer
   become: true
   ansible.builtin.systemd:
-    name: cert-manager.timer
+    name: step-ca-cert-renewer.timer
     enabled: true
     state: started

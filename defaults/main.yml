@@ -5,7 +5,6 @@ step_ca_client_cert_name: "{{ fqdn }}"
 step_ca_client_cert_file: "/etc/ssl/certs/{{ step_ca_client_cert_name }}.crt"
 step_ca_client_key_file: "/etc/ssl/private/{{ step_ca_client_cert_name }}.pem"
 step_ca_client_provisioner_password: password
-step_ca_client_provisioner_password_file: /root/.step/config/ansible_provisioner_password.txt
 step_ca_client_cert_not_after: 168h
-step_ca_client_renewal_schedule: daily
+step_ca_client_renewal_schedule: "*:0/10"
 step_ca_client_post_renew_commands: []

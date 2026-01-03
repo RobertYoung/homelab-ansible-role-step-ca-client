@@ -63,72 +63,72 @@
           - cert_validity_seconds | int <= 608400
         fail_msg: "Certificate validity is {{ cert_validity_seconds | int // 3600 }} hours, expected ~168 hours"
 
-    - name: Verify cert-manager script exists
+    - name: Verify step-ca-cert-renewer script exists
       ansible.builtin.stat:
-        path: /usr/local/bin/step-ca-cert-manager.sh
+        path: /usr/local/bin/step-ca-cert-renewer.sh
       register: script_stat
 
-    - name: Assert cert-manager script is executable
+    - name: Assert step-ca-cert-renewer script is executable
       ansible.builtin.assert:
         that:
           - script_stat.stat.exists
           - script_stat.stat.mode == '0755'
-        fail_msg: "cert-manager script is missing or not executable"
+        fail_msg: "step-ca-cert-renewer script is missing or not executable"
 
-    - name: Read cert-manager script
+    - name: Read step-ca-cert-renewer script
       ansible.builtin.slurp:
-        src: /usr/local/bin/step-ca-cert-manager.sh
+        src: /usr/local/bin/step-ca-cert-renewer.sh
       register: script_content
 
     - name: Assert post-command is in script
       ansible.builtin.assert:
         that:
           - "'/usr/bin/touch /tmp/cert-renewed-marker' in (script_content.content | b64decode)"
-        fail_msg: "Post-command not found in cert-manager script"
+        fail_msg: "Post-command not found in step-ca-cert-renewer script"
 
-    - name: Verify cert-manager service file exists
+    - name: Verify step-ca-cert-renewer service file exists
       ansible.builtin.stat:
-        path: /etc/systemd/system/cert-manager.service
+        path: /etc/systemd/system/step-ca-cert-renewer.service
       register: service_stat
 
-    - name: Assert cert-manager service file exists
+    - name: Assert step-ca-cert-renewer service file exists
       ansible.builtin.assert:
         that:
           - service_stat.stat.exists
-        fail_msg: "cert-manager.service does not exist"
+        fail_msg: "step-ca-cert-renewer.service does not exist"
 
-    - name: Read cert-manager service file
+    - name: Read step-ca-cert-renewer service file
       ansible.builtin.slurp:
-        src: /etc/systemd/system/cert-manager.service
+        src: /etc/systemd/system/step-ca-cert-renewer.service
       register: service_content
 
-    - name: Assert service calls cert-manager script
+    - name: Assert service calls step-ca-cert-renewer script
       ansible.builtin.assert:
         that:
-          - "'ExecStart=/usr/local/bin/step-ca-cert-manager.sh' in (service_content.content | b64decode)"
-        fail_msg: "Service does not call cert-manager script"
+          - "'ExecStart=/usr/local/bin/step-ca-cert-renewer.sh' in (service_content.content | b64decode)"
+        fail_msg: "Service does not call step-ca-cert-renewer script"
 
-    - name: Read cert-manager timer file
+    - name: Read step-ca-cert-renewer timer file
       ansible.builtin.slurp:
-        src: /etc/systemd/system/cert-manager.timer
+        src: /etc/systemd/system/step-ca-cert-renewer.timer
       register: timer_content
 
     - name: Assert timer schedule is configured correctly
       ansible.builtin.assert:
         that:
-          - "'OnCalendar=daily' in (timer_content.content | b64decode)"
-        fail_msg: "Timer schedule not configured correctly in cert-manager.timer"
+          - "'OnCalendar=*:0/10' in (timer_content.content | b64decode)"
+        fail_msg: "Timer schedule not configured correctly in step-ca-cert-renewer.timer"
 
-    - name: Verify cert-manager timer is enabled
+    - name: Verify step-ca-cert-renewer timer is enabled
       ansible.builtin.systemd:
-        name: cert-manager.timer
+        name: step-ca-cert-renewer.timer
       register: timer_status
 
-    - name: Assert cert-manager timer is enabled
+    - name: Assert step-ca-cert-renewer timer is enabled
       ansible.builtin.assert:
         that:
           - timer_status.status.UnitFileState == 'enabled'
-        fail_msg: "cert-manager.timer is not enabled"
+        fail_msg: "step-ca-cert-renewer.timer is not enabled"
 
     - name: Verify post-renewal marker file was created during initial cert creation
       ansible.builtin.stat:
@@ -141,9 +141,9 @@
           - marker_stat.stat.exists
         fail_msg: "Post-command was not executed during initial certificate creation"
 
-    - name: Run cert-manager script when cert is valid
+    - name: Run step-ca-cert-renewer script when cert is valid
       ansible.builtin.command:
-        cmd: /usr/local/bin/step-ca-cert-manager.sh
+        cmd: /usr/local/bin/step-ca-cert-renewer.sh
       register: script_result
       changed_when: false
 
