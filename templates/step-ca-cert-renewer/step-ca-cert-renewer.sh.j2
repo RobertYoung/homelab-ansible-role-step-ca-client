@@ -1,0 +1,19 @@
+#!/bin/bash
+# Certificate renewal script for step-ca
+set -euo pipefail
+
+CERT_FILE="{{ step_ca_client_cert_file }}"
+KEY_FILE="{{ step_ca_client_key_file }}"
+
+if /usr/bin/step certificate needs-renewal "$CERT_FILE"; then
+    echo "Renewing certificate..."
+    /usr/bin/step ca renew --force "$CERT_FILE" "$KEY_FILE"
+    echo "Running post-commands..."
+{% for cmd in step_ca_client_post_renew_commands %}
+    {{ cmd }}
+{% endfor %}
+else
+    echo "Certificate is valid, no action needed"
+fi
+
+exit 0

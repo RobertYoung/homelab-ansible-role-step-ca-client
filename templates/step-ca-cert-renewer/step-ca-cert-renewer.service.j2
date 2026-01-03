@@ -1,5 +1,5 @@
 [Unit]
-Description=Certificate manager for {{ step_ca_client_cert_name }}
+Description=Certificate renewer for {{ step_ca_client_cert_name }}
 After=network-online.target
 Documentation=https://smallstep.com/docs/step-ca/certificate-authority-server-production
 StartLimitIntervalSec=0
@@ -8,7 +8,7 @@ StartLimitIntervalSec=0
 Type=oneshot
 User=root
 
-ExecStart=/usr/local/bin/step-ca-cert-manager.sh
+ExecStart=/usr/local/bin/step-ca-cert-renewer.sh
 
 [Install]
 WantedBy=multi-user.target
