@@ -1,0 +1,42 @@
+---
+# Migration tasks to clean up old non-parameterized systemd units and scripts
+# These were used before the role supported multiple domains
+
+- name: Check if legacy timer exists
+  ansible.builtin.stat:
+    path: /etc/systemd/system/step-ca-cert-renewer.timer
+  register: legacy_timer_stat
+
+- name: Stop and disable legacy timer
+  become: true
+  ansible.builtin.systemd:
+    name: step-ca-cert-renewer.timer
+    enabled: false
+    state: stopped
+  when: legacy_timer_stat.stat.exists
+
+- name: Remove legacy systemd timer file
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/system/step-ca-cert-renewer.timer
+    state: absent
+  register: legacy_timer_removed
+
+- name: Remove legacy systemd service file
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/system/step-ca-cert-renewer.service
+    state: absent
+  register: legacy_service_removed
+
+- name: Reload systemd after removing legacy units
+  become: true
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: legacy_timer_removed.changed or legacy_service_removed.changed
+
+- name: Remove legacy renewal script
+  become: true
+  ansible.builtin.file:
+    path: /usr/local/bin/step-ca-cert-renewer.sh
+    state: absent

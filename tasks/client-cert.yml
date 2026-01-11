@@ -42,7 +42,7 @@
   become: true
   ansible.builtin.template:
     src: "step-ca-cert-renewer/step-ca-cert-renewer.sh.j2"
-    dest: /usr/local/bin/step-ca-cert-renewer.sh
+    dest: "/usr/local/bin/step-ca-cert-renewer-{{ step_ca_client_cert_name }}.sh"
     owner: root
     group: root
     mode: "0755"
@@ -51,7 +51,7 @@
   become: true
   ansible.builtin.template:
     src: "step-ca-cert-renewer/step-ca-cert-renewer.service.j2"
-    dest: /etc/systemd/system/step-ca-cert-renewer.service
+    dest: "/etc/systemd/system/step-ca-cert-renewer@{{ step_ca_client_cert_name }}.service"
     owner: root
     mode: "0644"
   register: cert_renewer_service
@@ -60,7 +60,7 @@
   become: true
   ansible.builtin.template:
     src: "step-ca-cert-renewer/step-ca-cert-renewer.timer.j2"
-    dest: /etc/systemd/system/step-ca-cert-renewer.timer
+    dest: "/etc/systemd/system/step-ca-cert-renewer@{{ step_ca_client_cert_name }}.timer"
     owner: root
     mode: "0644"
   register: cert_renewer_timer
@@ -75,6 +75,6 @@
 - name: Enable and start step-ca-cert-renewer timer
   become: true
   ansible.builtin.systemd:
-    name: step-ca-cert-renewer.timer
+    name: "step-ca-cert-renewer@{{ step_ca_client_cert_name }}.timer"
     enabled: true
     state: started
