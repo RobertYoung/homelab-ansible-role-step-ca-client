@@ -3,6 +3,10 @@
   ansible.builtin.include_tasks:
     file: setup.yml
 
+- name: Migrate from legacy non-parameterized units
+  ansible.builtin.include_tasks:
+    file: legacy.yml
+
 - name: Client Certificate
   ansible.builtin.include_tasks:
     file: client-cert.yml

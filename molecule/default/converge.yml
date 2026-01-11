@@ -3,9 +3,20 @@
   hosts: all
   become: true
   vars:
-    fqdn: molecule-test.local
     step_ca_client_provisioner_password: "{{ lookup('amazon.aws.ssm_parameter', '/home-server/step-ca-ansible-password') }}"
-    step_ca_client_post_renew_commands:
-      - "/usr/bin/touch /tmp/cert-renewed-marker"
-  roles:
-    - role: robertyoung.step_ca_client
+  tasks:
+    - name: Include role for first domain
+      ansible.builtin.include_role:
+        name: robertyoung.step_ca_client
+      vars:
+        step_ca_client_cert_name: molecule-test.local
+        step_ca_client_post_renew_commands:
+          - "/usr/bin/touch /tmp/cert-renewed-marker-first"
+
+    - name: Include role for second domain
+      ansible.builtin.include_role:
+        name: robertyoung.step_ca_client
+      vars:
+        step_ca_client_cert_name: second-domain.local
+        step_ca_client_post_renew_commands:
+          - "/usr/bin/touch /tmp/cert-renewed-marker-second"

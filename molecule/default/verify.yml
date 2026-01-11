@@ -3,9 +3,11 @@
   hosts: all
   become: true
   vars:
-    fqdn: molecule-test.local
-    cert_file: "/etc/ssl/certs/{{ fqdn }}.crt"
-    key_file: "/etc/ssl/private/{{ fqdn }}.pem"
+    domains:
+      - name: molecule-test.local
+        marker_file: /tmp/cert-renewed-marker-first
+      - name: second-domain.local
+        marker_file: /tmp/cert-renewed-marker-second
 
   tasks:
     - name: Verify step-cli is installed
@@ -19,136 +21,8 @@
           - step_version.rc == 0
         fail_msg: "step-cli is not installed"
 
-    - name: Verify certificate file exists
-      ansible.builtin.stat:
-        path: "{{ cert_file }}"
-      register: cert_stat
-
-    - name: Assert certificate file exists
-      ansible.builtin.assert:
-        that:
-          - cert_stat.stat.exists
-        fail_msg: "Certificate file {{ cert_file }} does not exist"
-
-    - name: Verify private key file exists
-      ansible.builtin.stat:
-        path: "{{ key_file }}"
-      register: key_stat
-
-    - name: Assert private key file exists
-      ansible.builtin.assert:
-        that:
-          - key_stat.stat.exists
-        fail_msg: "Private key file {{ key_file }} does not exist"
-
-    - name: Get certificate validity period
-      ansible.builtin.command:
-        cmd: step certificate inspect {{ cert_file }} --format json
-      register: cert_info
-      changed_when: false
-
-    - name: Parse certificate validity
-      ansible.builtin.set_fact:
-        cert_not_before: "{{ (cert_info.stdout | from_json).validity.start }}"
-        cert_not_after: "{{ (cert_info.stdout | from_json).validity.end }}"
-
-    - name: Calculate certificate validity duration in hours
-      ansible.builtin.set_fact:
-        cert_validity_seconds: "{{ ((cert_not_after | to_datetime('%Y-%m-%dT%H:%M:%SZ')) - (cert_not_before | to_datetime('%Y-%m-%dT%H:%M:%SZ'))).total_seconds() | int }}"
-
-    - name: Assert certificate validity is approximately 168 hours (7 days)
-      ansible.builtin.assert:
-        that:
-          - cert_validity_seconds | int >= 601200
-          - cert_validity_seconds | int <= 608400
-        fail_msg: "Certificate validity is {{ cert_validity_seconds | int // 3600 }} hours, expected ~168 hours"
-
-    - name: Verify step-ca-cert-renewer script exists
-      ansible.builtin.stat:
-        path: /usr/local/bin/step-ca-cert-renewer.sh
-      register: script_stat
-
-    - name: Assert step-ca-cert-renewer script is executable
-      ansible.builtin.assert:
-        that:
-          - script_stat.stat.exists
-          - script_stat.stat.mode == '0755'
-        fail_msg: "step-ca-cert-renewer script is missing or not executable"
-
-    - name: Read step-ca-cert-renewer script
-      ansible.builtin.slurp:
-        src: /usr/local/bin/step-ca-cert-renewer.sh
-      register: script_content
-
-    - name: Assert post-command is in script
-      ansible.builtin.assert:
-        that:
-          - "'/usr/bin/touch /tmp/cert-renewed-marker' in (script_content.content | b64decode)"
-        fail_msg: "Post-command not found in step-ca-cert-renewer script"
-
-    - name: Verify step-ca-cert-renewer service file exists
-      ansible.builtin.stat:
-        path: /etc/systemd/system/step-ca-cert-renewer.service
-      register: service_stat
-
-    - name: Assert step-ca-cert-renewer service file exists
-      ansible.builtin.assert:
-        that:
-          - service_stat.stat.exists
-        fail_msg: "step-ca-cert-renewer.service does not exist"
-
-    - name: Read step-ca-cert-renewer service file
-      ansible.builtin.slurp:
-        src: /etc/systemd/system/step-ca-cert-renewer.service
-      register: service_content
-
-    - name: Assert service calls step-ca-cert-renewer script
-      ansible.builtin.assert:
-        that:
-          - "'ExecStart=/usr/local/bin/step-ca-cert-renewer.sh' in (service_content.content | b64decode)"
-        fail_msg: "Service does not call step-ca-cert-renewer script"
-
-    - name: Read step-ca-cert-renewer timer file
-      ansible.builtin.slurp:
-        src: /etc/systemd/system/step-ca-cert-renewer.timer
-      register: timer_content
-
-    - name: Assert timer schedule is configured correctly
-      ansible.builtin.assert:
-        that:
-          - "'OnCalendar=*:0/10' in (timer_content.content | b64decode)"
-        fail_msg: "Timer schedule not configured correctly in step-ca-cert-renewer.timer"
-
-    - name: Verify step-ca-cert-renewer timer is enabled
-      ansible.builtin.systemd:
-        name: step-ca-cert-renewer.timer
-      register: timer_status
-
-    - name: Assert step-ca-cert-renewer timer is enabled
-      ansible.builtin.assert:
-        that:
-          - timer_status.status.UnitFileState == 'enabled'
-        fail_msg: "step-ca-cert-renewer.timer is not enabled"
-
-    - name: Verify post-renewal marker file was created during initial cert creation
-      ansible.builtin.stat:
-        path: /tmp/cert-renewed-marker
-      register: marker_stat
-
-    - name: Assert post-command was executed during initial certificate creation
-      ansible.builtin.assert:
-        that:
-          - marker_stat.stat.exists
-        fail_msg: "Post-command was not executed during initial certificate creation"
-
-    - name: Run step-ca-cert-renewer script when cert is valid
-      ansible.builtin.command:
-        cmd: /usr/local/bin/step-ca-cert-renewer.sh
-      register: script_result
-      changed_when: false
-
-    - name: Assert script reports cert is valid
-      ansible.builtin.assert:
-        that:
-          - "'Certificate is valid, no action needed' in script_result.stdout"
-        fail_msg: "Script should report cert is valid when no action needed"
+    - name: Verify certificates for each domain
+      ansible.builtin.include_tasks: verify_domain.yml
+      loop: "{{ domains }}"
+      loop_control:
+        loop_var: domain
