@@ -100,6 +100,16 @@
       - "script_path in (service_content.content | b64decode)"
     fail_msg: "Service does not call correct script {{ script_path }}"
 
+- name: Assert the syslog identifier fits RFC 5424's APP-NAME limit for {{ domain.name }}
+  ansible.builtin.assert:
+    that:
+      - "'SyslogIdentifier=step-ca-cert-renewer' in (service_content.content | b64decode)"
+    fail_msg: >-
+      Service does not pin SyslogIdentifier. journald would derive it from the
+      ExecStart basename, which carries the FQDN and exceeds RFC 5424's 48
+      character APP-NAME limit, so a strict syslog receiver drops every line
+      this unit logs.
+
 - name: Read step-ca-cert-renewer timer file for {{ domain.name }}
   ansible.builtin.slurp:
     src: "{{ timer_path }}"
