@@ -8,6 +8,15 @@ StartLimitIntervalSec=0
 Type=oneshot
 User=root
 
+; Without this, journald derives the syslog identifier from the ExecStart
+; basename, which carries the FQDN and runs 56-62 characters. RFC 5424 caps
+; APP-NAME at 48, so a strict parser rejects the whole message: every line
+; this unit logs was being dropped on the floor by the syslog receiver, and
+; the renewer's output is the one thing that says whether renewal is working.
+; Fixed here rather than by shortening the script name, because the per-domain
+; name is what makes the units parameterisable.
+SyslogIdentifier=step-ca-cert-renewer
+
 ExecStart=/usr/local/bin/step-ca-cert-renewer-{{ step_ca_client_cert_name }}.sh
 
 [Install]
